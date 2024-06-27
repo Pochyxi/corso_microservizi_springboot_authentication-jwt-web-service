@@ -1,0 +1,40 @@
+# ==============================================================
+# = Authentication Server JWT
+# ==============================================================
+spring:
+    application:
+        name: AUTH-SERVICE
+server:
+    port: 9101
+
+# ==============================================================
+# = Parametri Servizio gestUser
+# ==============================================================
+gestuser:
+  srvUrl: http://localhost:8019/api/utenti/cerca/userid/
+  userId: ReadUser
+  password: 123Stella
+
+# ==============================================================
+# = Parametri Sicurezza JWT 
+# ==============================================================
+sicurezza:
+    uri: /auth
+    refresh: /refresh
+    header: Authorization
+    prefix: Bearer 
+    expiration: 86400
+    secret: $123_Stella@adiener.it$
+
+# ==============================================================
+# = Livello Log di Sicurezza
+# ==============================================================  
+logging:
+  level:
+    org.springframework.security: DEBUG
+
+
+        
+
+  
+ 
