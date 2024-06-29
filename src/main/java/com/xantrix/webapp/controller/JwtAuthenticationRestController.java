@@ -25,33 +25,44 @@ import com.xantrix.webapp.security.JwtTokenUtil;
 
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
- 
+
 @RestController
 @Log
-public class JwtAuthenticationRestController 
+public class JwtAuthenticationRestController
 {
-
 	@Value("${sicurezza.header}")
 	private String tokenHeader;
 
 	private final AuthenticationManager authenticationManager;
-
 	private final JwtTokenUtil jwtTokenUtil;
-
 	private final UserDetailsService userDetailsService;
 
+	/**
+	 * Costruttore per JwtAuthenticationRestController.
+	 *
+	 * @param authenticationManager Gestore dell'autenticazione
+	 * @param jwtTokenUtil Utility per la gestione dei token JWT
+	 * @param userDetailsService Servizio per caricare i dettagli dell'utente
+	 */
 	@Autowired
-	public JwtAuthenticationRestController(AuthenticationManager authenticationManager, JwtTokenUtil jwtTokenUtil, @Qualifier("customUserDetailsService") UserDetailsService userDetailsService)
+	public JwtAuthenticationRestController(AuthenticationManager authenticationManager,
+										   JwtTokenUtil jwtTokenUtil,
+										   @Qualifier("customUserDetailsService") UserDetailsService userDetailsService)
 	{
 		this.authenticationManager = authenticationManager;
 		this.jwtTokenUtil = jwtTokenUtil;
 		this.userDetailsService = userDetailsService;
-
 	}
-	
+
+	/**
+	 * Endpoint per la creazione di un token di autenticazione.
+	 *
+	 * @param authenticationRequest Richiesta contenente username e password
+	 * @return ResponseEntity con il token JWT
+	 */
 	@PostMapping(value = "${sicurezza.uri}")
 	@SneakyThrows
-	public ResponseEntity<JwtTokenResponse> createAuthenticationToken(@RequestBody JwtTokenRequest authenticationRequest) 
+	public ResponseEntity<JwtTokenResponse> createAuthenticationToken(@RequestBody JwtTokenRequest authenticationRequest)
 	{
 		log.info("Autenticazione e Generazione Token");
 
@@ -61,61 +72,78 @@ public class JwtAuthenticationRestController
 				.loadUserByUsername(authenticationRequest.getUsername());
 
 		final String token = jwtTokenUtil.generateToken(userDetails);
-		
+
 		log.warning(String.format("Token %s", token));
 
 		return ResponseEntity.ok(new JwtTokenResponse(token));
 	}
 
+	/**
+	 * Endpoint per il refresh del token di autenticazione.
+	 *
+	 * @param request HttpServletRequest contenente il token attuale
+	 * @return ResponseEntity con il nuovo token JWT
+	 */
 	@GetMapping(value = "${sicurezza.refresh}")
 	@SneakyThrows
-	public ResponseEntity<JwtTokenResponse> refreshAndGetAuthenticationToken(HttpServletRequest request) 
+	public ResponseEntity<JwtTokenResponse> refreshAndGetAuthenticationToken(HttpServletRequest request)
 	{
 		log.info("Tentativo Refresh Token");
 		String authToken = request.getHeader(tokenHeader);
-		
+
 		if (authToken == null)
 		{
 			throw new Exception("Token assente o non valido!");
 		}
-		
-		final String token = authToken; 
-		
-		if (jwtTokenUtil.canTokenBeRefreshed(token)) 
+
+        if (jwtTokenUtil.canTokenBeRefreshed( authToken ))
 		{
-			String refreshedToken = jwtTokenUtil.refreshToken(token);
-			
+			String refreshedToken = jwtTokenUtil.refreshToken( authToken );
+
 			log.warning(String.format("Refreshed Token %s", refreshedToken));
-			
+
 			return ResponseEntity.ok(new JwtTokenResponse(refreshedToken));
-		} 
-		else 
+		}
+		else
 		{
 			return ResponseEntity.badRequest().body(null);
 		}
 	}
 
+	/**
+	 * Gestore delle eccezioni di autenticazione.
+	 *
+	 * @param e Eccezione di autenticazione
+	 * @return ResponseEntity con messaggio di errore
+	 */
 	@ExceptionHandler({ AuthenticationException.class })
-	public ResponseEntity<String> handleAuthenticationException(AuthenticationException e) 
+	public ResponseEntity<String> handleAuthenticationException(AuthenticationException e)
 	{
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
 	}
 
-	private void authenticate(String username, String password) 
+	/**
+	 * Metodo privato per l'autenticazione dell'utente.
+	 *
+	 * @param username Nome utente
+	 * @param password Password
+	 * @throws AuthenticationException se l'autenticazione fallisce
+	 */
+	private void authenticate(String username, String password)
 	{
 		Objects.requireNonNull(username);
 		Objects.requireNonNull(password);
 
-		try 
+		try
 		{
 			authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-		} 
-		catch (DisabledException e) 
+		}
+		catch (DisabledException e)
 		{
 			log.warning("UTENTE DISABILITATO");
 			throw new AuthenticationException("UTENTE DISABILITATO", e);
-		} 
-		catch (BadCredentialsException e) 
+		}
+		catch (BadCredentialsException e)
 		{
 			log.warning("CREDENZIALI NON VALIDE");
 			throw new AuthenticationException("CREDENZIALI NON VALIDE", e);
